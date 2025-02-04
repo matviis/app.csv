@@ -74,7 +74,7 @@ def split_csv(input_file, rows_list, names_list):
         rows = list(reader)
 
     # Берем только второй столбец (Email) и пропускаем заголовок
-    email_data = ["email"] + [row[1] for row in rows[1:] if len(row) > 1]
+    email_data = [row[1] for row in rows[1:] if len(row) > 1]
 
     start_index = 0
     total_rows = len(email_data)
@@ -97,6 +97,7 @@ def split_csv(input_file, rows_list, names_list):
         output_file_path = f"{OUTPUT_FOLDER}/{file_name}.csv"
         with open(output_file_path, "w", newline="") as outfile:
             writer = csv.writer(outfile)
+            writer.writerow(["email"])  # Добавляем строку "email" в начале каждого файла
             writer.writerows([[email] for email in email_data[start_index:start_index + rows_per_file]])
 
         start_index += rows_per_file
@@ -106,6 +107,7 @@ def split_csv(input_file, rows_list, names_list):
         extra_file_path = f"{OUTPUT_FOLDER}/extra.csv"
         with open(extra_file_path, "w", newline="") as extra_file:
             writer = csv.writer(extra_file)
+            writer.writerow(["email"])  # Добавляем "email" в extra.csv
             writer.writerows([[email] for email in email_data[start_index:]])
 
 if __name__ == "__main__":
