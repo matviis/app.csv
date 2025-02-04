@@ -28,7 +28,7 @@ def index():
         rows_list = list(map(int, rows_per_file.split(",")))
 
         # Получаем список имен файлов
-        names_list = file_names.split(",")
+        names_list = [name.strip() for name in file_names.split(",")]
 
         # Проверяем, хватает ли имен для частей
         if len(names_list) < len(rows_list):
@@ -46,7 +46,8 @@ def index():
     return render_template("index.html")
 
 def split_csv(input_file, rows_list, names_list):
-    file_count = 0
+    file_count = {}
+    used_names = set()  # Запоминаем использованные имена
 
     with open(input_file, "r", newline="") as file:
         reader = csv.reader(file)
@@ -59,13 +60,23 @@ def split_csv(input_file, rows_list, names_list):
         if start_index >= total_rows:
             break
 
-        output_file_path = f"{OUTPUT_FOLDER}/{names_list[i].strip()}.csv"
+        base_name = names_list[i]
+
+        # Если имя уже есть, добавляем номер (file_1, file_2 и т.д.)
+        if base_name in used_names:
+            file_count[base_name] += 1
+            file_name = f"{base_name}_{file_count[base_name]}"
+        else:
+            file_count[base_name] = 1
+            file_name = base_name
+            used_names.add(base_name)
+
+        output_file_path = f"{OUTPUT_FOLDER}/{file_name}.csv"
         with open(output_file_path, "w", newline="") as outfile:
             writer = csv.writer(outfile)
             writer.writerows(rows[start_index:start_index + rows_per_file])
 
         start_index += rows_per_file
-        file_count += 1
 
     # Если остались неиспользованные строки – кидаем в extra.csv
     if start_index < total_rows:
