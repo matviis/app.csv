@@ -30,7 +30,7 @@ def index():
 
         file = request.files.get("file")
         file_names = request.form.get("file_names")
-        action = request.form.get("action")  # Определяем, какая кнопка была нажата
+        action = request.form.get("action")
 
         if not file or not file_names.strip():
             return "Ошибка: Файл не загружен или имена не указаны", 400
@@ -39,7 +39,6 @@ def index():
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         file.save(file_path)
 
-        # Если выбрано "Разделить поровну", вычисляем количество строк в каждой части
         if action == "split_equally":
             parts_count = len(file_names.split(","))
             rows_list = calculate_equal_parts(file_path, parts_count)
@@ -47,13 +46,11 @@ def index():
             rows_per_file = request.form.get("rows_per_file")
             rows_list = list(map(int, rows_per_file.split(",")))
 
-        # Получаем список имен файлов
         names_list = [name.strip() for name in file_names.split(",")]
 
         if len(names_list) < len(rows_list):
             return "Ошибка: Количество имен файлов меньше, чем частей", 400
 
-        # Выбираем, какую функцию запустить
         action_type = request.form.get("action_type")
         if action_type == "filter_email":
             split_csv_only_email(file_path, rows_list, names_list)
@@ -99,7 +96,6 @@ def calculate_equal_parts(file_path, parts_count):
     base_count = total_rows // parts_count
     remainder = total_rows % parts_count
 
-    # Равномерное распределение строк + случайное распределение оставшихся строк
     rows_list = [base_count] * parts_count
     extra_indices = random.sample(range(parts_count), remainder)
 
@@ -149,6 +145,14 @@ def split_and_save(data, rows_list, names_list, header):
             writer.writerows([[row] if isinstance(row, str) else row for row in data[start_index:start_index + rows_per_file]])
 
         start_index += rows_per_file
+
+    # Если остались неиспользованные контакты, сохраняем их в extra.csv
+    if start_index < total_rows:
+        extra_file_path = f"{OUTPUT_FOLDER}/extra.csv"
+        with open(extra_file_path, "w", newline="") as extra_file:
+            writer = csv.writer(extra_file)
+            writer.writerow([header])
+            writer.writerows([[row] if isinstance(row, str) else row for row in data[start_index:]])
 
 def get_unique_filename(base_name, used_names, file_count):
     """Генерирует уникальное имя файла, если имена повторяются."""
