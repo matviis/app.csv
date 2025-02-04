@@ -29,7 +29,8 @@ def index():
 
         file = request.files["file"]
         file_names = request.form["file_names"]
-        
+        action = request.form["action"]  # Определяем, какая кнопка была нажата
+
         if not file or not file_names.strip():
             return "Ошибка: Файл не загружен или имена не указаны", 400
 
@@ -48,8 +49,11 @@ def index():
         if len(names_list) < len(rows_list):
             return "Ошибка: Количество имен файлов меньше, чем частей", 400
 
-        # Разбиваем CSV, беря только email-столбец
-        split_csv(file_path, rows_list, names_list)
+        # Выбираем, какую функцию запустить
+        if action == "filter_email":
+            split_csv_only_email(file_path, rows_list, names_list)
+        elif action == "split_contacts":
+            split_csv_keep_all_columns(file_path, rows_list, names_list)
 
         # Архивируем результат
         zip_path = f"{OUTPUT_FOLDER}/split_files.zip"
@@ -65,7 +69,8 @@ def index():
 
     return render_template("index.html")
 
-def split_csv(input_file, rows_list, names_list):
+def split_csv_only_email(input_file, rows_list, names_list):
+    """Оставляет только 2-й столбец (Email), удаляет заголовок и добавляет 'email' в каждую часть."""
     file_count = {}
     used_names = set()
 
@@ -73,7 +78,7 @@ def split_csv(input_file, rows_list, names_list):
         reader = csv.reader(file)
         rows = list(reader)
 
-    # Берем только второй столбец (Email) и пропускаем заголовок
+    # Берем только email (второй столбец) и пропускаем заголовок
     email_data = [row[1] for row in rows[1:] if len(row) > 1]
 
     start_index = 0
@@ -97,18 +102,48 @@ def split_csv(input_file, rows_list, names_list):
         output_file_path = f"{OUTPUT_FOLDER}/{file_name}.csv"
         with open(output_file_path, "w", newline="") as outfile:
             writer = csv.writer(outfile)
-            writer.writerow(["email"])  # Добавляем строку "email" в начале каждого файла
+            writer.writerow(["email"])  # Добавляем заголовок "email"
             writer.writerows([[email] for email in email_data[start_index:start_index + rows_per_file]])
 
         start_index += rows_per_file
 
-    # Если остались неиспользованные email-адреса – кидаем в extra.csv
-    if start_index < total_rows:
-        extra_file_path = f"{OUTPUT_FOLDER}/extra.csv"
-        with open(extra_file_path, "w", newline="") as extra_file:
-            writer = csv.writer(extra_file)
-            writer.writerow(["email"])  # Добавляем "email" в extra.csv
-            writer.writerows([[email] for email in email_data[start_index:]])
+def split_csv_keep_all_columns(input_file, rows_list, names_list):
+    """Оставляет все столбцы, но удаляет заголовок и добавляет 'email' в каждую часть."""
+    file_count = {}
+    used_names = set()
+
+    with open(input_file, "r", newline="") as file:
+        reader = csv.reader(file)
+        rows = list(reader)
+
+    # Удаляем заголовок
+    data = rows[1:]
+
+    start_index = 0
+    total_rows = len(data)
+
+    for i, rows_per_file in enumerate(rows_list):
+        if start_index >= total_rows:
+            break
+
+        base_name = names_list[i]
+
+        # Если имя уже есть, добавляем номер
+        if base_name in used_names:
+            file_count[base_name] += 1
+            file_name = f"{base_name}_{file_count[base_name]}"
+        else:
+            file_count[base_name] = 1
+            file_name = base_name
+            used_names.add(base_name)
+
+        output_file_path = f"{OUTPUT_FOLDER}/{file_name}.csv"
+        with open(output_file_path, "w", newline="") as outfile:
+            writer = csv.writer(outfile)
+            writer.writerow(["email"])  # Добавляем заголовок "email"
+            writer.writerows(data[start_index:start_index + rows_per_file])
+
+        start_index += rows_per_file
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
