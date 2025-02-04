@@ -46,17 +46,27 @@ def split_csv(input_file, rows_list):
         rows = list(reader)  # Загружаем весь CSV в память
 
     start_index = 0
+    total_rows = len(rows)
+
+    # Разбиваем на заданное количество частей
     for rows_per_file in rows_list:
-        if start_index >= len(rows):  # Если файл уже закончился, выходим
+        if start_index >= total_rows:
             break
 
         output_file_path = f"{OUTPUT_FOLDER}/{output_file_base_name}_part_{file_count}.csv"
         with open(output_file_path, "w", newline="") as outfile:
             writer = csv.writer(outfile)
-            writer.writerows(rows[start_index:start_index + rows_per_file])  # Записываем нужное количество строк
+            writer.writerows(rows[start_index:start_index + rows_per_file])
 
         start_index += rows_per_file
         file_count += 1
+
+    # Если остались неиспользованные строки – кидаем в extra.csv
+    if start_index < total_rows:
+        extra_file_path = f"{OUTPUT_FOLDER}/{output_file_base_name}_extra.csv"
+        with open(extra_file_path, "w", newline="") as extra_file:
+            writer = csv.writer(extra_file)
+            writer.writerows(rows[start_index:])  # Записываем все оставшиеся строки
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
