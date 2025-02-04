@@ -4,25 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CSV Splitter</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; }
-        form { margin: 50px auto; width: 350px; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }
-        input, button { width: 100%; margin-top: 10px; padding: 10px; }
-    </style>
+    <script>
+        function splitEqually() {
+            let fileInput = document.querySelector('input[name="file"]').files[0];
+            let partsCount = document.querySelector('input[name="file_names"]').value.split(",").length;
+            
+            let formData = new FormData();
+            formData.append("file", fileInput);
+            formData.append("parts_count", partsCount);
+
+            fetch("/calculate_equal_parts", { method: "POST", body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    document.querySelector('input[name="rows_per_file"]').value = data.rows_per_file;
+                });
+        }
+    </script>
 </head>
 <body>
     <h1>Разделение CSV-файла</h1>
     <form action="/" method="post" enctype="multipart/form-data">
         <input type="file" name="file" accept=".csv" required><br><br>
-
-        <label>Введите строки для каждой части (через запятую):</label>
-        <input type="text" name="rows_per_file" placeholder="100,50,30" required><br><br>
-
         <label>Введите названия файлов (через запятую):</label>
-        <input type="text" name="file_names" placeholder="file1,file2,file3" required><br><br>
-
-        <button type="submit" name="action" value="filter_email">Фильтровать Email</button>
-        <button type="submit" name="action" value="split_contacts">Разделить контакты</button>
+        <input type="text" name="file_names" required><br><br>
+        <label>Введите строки для каждой части:</label>
+        <input type="text" name="rows_per_file" required>
+        <button type="button" onclick="splitEqually()">Разделить поровну</button><br><br>
+        <button type="submit" name="action_type" value="filter_email">Фильтровать Email</button>
+        <button type="submit" name="action_type" value="split_contacts">Разделить контакты</button>
     </form>
 </body>
 </html>
