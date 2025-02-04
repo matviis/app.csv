@@ -15,9 +15,9 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 def index():
     if request.method == "POST":
         file = request.files["file"]
-        file_name = request.form["file_name"]  # Получаем имя файла от пользователя
-        if not file or not file_name.strip():
-            return "Ошибка: Файл не загружен или имя не указано", 400
+        file_names = request.form["file_names"]  # Получаем имена файлов
+        if not file or not file_names.strip():
+            return "Ошибка: Файл не загружен или имена не указаны", 400
 
         filename = secure_filename(file.filename)
         file_path = os.path.join(UPLOAD_FOLDER, filename)
@@ -27,19 +27,26 @@ def index():
         rows_per_file = request.form["rows_per_file"]
         rows_list = list(map(int, rows_per_file.split(",")))
 
+        # Получаем список имен файлов
+        names_list = file_names.split(",")
+
+        # Проверяем, хватает ли имен для частей
+        if len(names_list) < len(rows_list):
+            return "Ошибка: Количество имен файлов меньше, чем частей", 400
+
         # Разбиваем CSV
-        split_csv(file_path, rows_list, file_name)
+        split_csv(file_path, rows_list, names_list)
 
         # Архивируем результат
-        zip_path = f"output/{file_name}_split_files.zip"
+        zip_path = "output/split_files.zip"
         shutil.make_archive(zip_path.replace(".zip", ""), "zip", OUTPUT_FOLDER)
 
         return send_file(zip_path, as_attachment=True)
 
     return render_template("index.html")
 
-def split_csv(input_file, rows_list, file_name):
-    file_count = 1
+def split_csv(input_file, rows_list, names_list):
+    file_count = 0
 
     with open(input_file, "r", newline="") as file:
         reader = csv.reader(file)
@@ -48,11 +55,11 @@ def split_csv(input_file, rows_list, file_name):
     start_index = 0
     total_rows = len(rows)
 
-    for rows_per_file in rows_list:
+    for i, rows_per_file in enumerate(rows_list):
         if start_index >= total_rows:
             break
 
-        output_file_path = f"{OUTPUT_FOLDER}/{file_name}_part_{file_count}.csv"
+        output_file_path = f"{OUTPUT_FOLDER}/{names_list[i].strip()}.csv"
         with open(output_file_path, "w", newline="") as outfile:
             writer = csv.writer(outfile)
             writer.writerows(rows[start_index:start_index + rows_per_file])
@@ -62,7 +69,7 @@ def split_csv(input_file, rows_list, file_name):
 
     # Если остались неиспользованные строки – кидаем в extra.csv
     if start_index < total_rows:
-        extra_file_path = f"{OUTPUT_FOLDER}/{file_name}_extra.csv"
+        extra_file_path = f"{OUTPUT_FOLDER}/extra.csv"
         with open(extra_file_path, "w", newline="") as extra_file:
             writer = csv.writer(extra_file)
             writer.writerows(rows[start_index:])  # Записываем все оставшиеся строки
