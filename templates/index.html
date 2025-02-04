@@ -13,9 +13,9 @@
 <body>
     <h1>Разделение CSV-файла</h1>
     <form action="/" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" accept=".csv" required><br>
-        <label>Строк на файл:</label>
-        <input type="number" name="rows_per_file" value="100" required><br>
+        <input type="file" name="file" accept=".csv" required><br><br>
+        <label>Введите строки для каждой части (через запятую):</label>
+        <input type="text" name="rows_per_file" placeholder="100,50,30" required><br><br>
         <button type="submit">Разбить CSV</button>
     </form>
 </body>
