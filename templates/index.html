@@ -6,7 +6,7 @@
     <title>CSV Splitter</title>
     <style>
         body { font-family: Arial, sans-serif; text-align: center; }
-        form { margin: 50px auto; width: 300px; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }
+        form { margin: 50px auto; width: 350px; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }
         input, button { width: 100%; margin-top: 10px; padding: 10px; }
     </style>
 </head>
@@ -14,13 +14,13 @@
     <h1>Разделение CSV-файла</h1>
     <form action="/" method="post" enctype="multipart/form-data">
         <input type="file" name="file" accept=".csv" required><br><br>
-        
-        <label>Введите название файлов:</label>
-        <input type="text" name="file_name" placeholder="example" required><br><br>
-        
+
         <label>Введите строки для каждой части (через запятую):</label>
         <input type="text" name="rows_per_file" placeholder="100,50,30" required><br><br>
-        
+
+        <label>Введите названия файлов (через запятую):</label>
+        <input type="text" name="file_names" placeholder="file1,file2,file3" required><br><br>
+
         <button type="submit">Разбить CSV</button>
     </form>
 </body>
