@@ -8,14 +8,28 @@ app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 OUTPUT_FOLDER = "output"
+
+# Создаем папки, если их нет
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+def clear_folder(folder):
+    """Удаляет все файлы в указанной папке."""
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
+        # Очищаем старые файлы перед новой загрузкой
+        clear_folder(UPLOAD_FOLDER)
+        clear_folder(OUTPUT_FOLDER)
+
         file = request.files["file"]
-        file_names = request.form["file_names"]  # Получаем имена файлов
+        file_names = request.form["file_names"]
+        
         if not file or not file_names.strip():
             return "Ошибка: Файл не загружен или имена не указаны", 400
 
@@ -38,20 +52,26 @@ def index():
         split_csv(file_path, rows_list, names_list)
 
         # Архивируем результат
-        zip_path = "output/split_files.zip"
+        zip_path = f"{OUTPUT_FOLDER}/split_files.zip"
         shutil.make_archive(zip_path.replace(".zip", ""), "zip", OUTPUT_FOLDER)
 
-        return send_file(zip_path, as_attachment=True)
+        response = send_file(zip_path, as_attachment=True)
+
+        # Очищаем файлы после отправки
+        clear_folder(UPLOAD_FOLDER)
+        clear_folder(OUTPUT_FOLDER)
+
+        return response
 
     return render_template("index.html")
 
 def split_csv(input_file, rows_list, names_list):
     file_count = {}
-    used_names = set()  # Запоминаем использованные имена
+    used_names = set()
 
     with open(input_file, "r", newline="") as file:
         reader = csv.reader(file)
-        rows = list(reader)  # Загружаем весь CSV в память
+        rows = list(reader)  
 
     start_index = 0
     total_rows = len(rows)
@@ -62,7 +82,7 @@ def split_csv(input_file, rows_list, names_list):
 
         base_name = names_list[i]
 
-        # Если имя уже есть, добавляем номер (file_1, file_2 и т.д.)
+        # Если имя уже есть, добавляем номер
         if base_name in used_names:
             file_count[base_name] += 1
             file_name = f"{base_name}_{file_count[base_name]}"
@@ -83,7 +103,7 @@ def split_csv(input_file, rows_list, names_list):
         extra_file_path = f"{OUTPUT_FOLDER}/extra.csv"
         with open(extra_file_path, "w", newline="") as extra_file:
             writer = csv.writer(extra_file)
-            writer.writerows(rows[start_index:])  # Записываем все оставшиеся строки
+            writer.writerows(rows[start_index:])  
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
