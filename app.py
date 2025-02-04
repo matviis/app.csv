@@ -48,7 +48,7 @@ def index():
         if len(names_list) < len(rows_list):
             return "Ошибка: Количество имен файлов меньше, чем частей", 400
 
-        # Разбиваем CSV
+        # Разбиваем CSV, беря только email-столбец
         split_csv(file_path, rows_list, names_list)
 
         # Архивируем результат
@@ -71,16 +71,13 @@ def split_csv(input_file, rows_list, names_list):
 
     with open(input_file, "r", newline="") as file:
         reader = csv.reader(file)
-        rows = list(reader)  
+        rows = list(reader)
 
-    # Удаляем заголовок (первую строку)
-    rows = rows[1:]
-
-    # Берем только первый столбец
-    processed_rows = [["email"]] + [[row[0]] for row in rows if row]
+    # Берем только второй столбец (Email) и пропускаем заголовок
+    email_data = ["email"] + [row[1] for row in rows[1:] if len(row) > 1]
 
     start_index = 0
-    total_rows = len(processed_rows)
+    total_rows = len(email_data)
 
     for i, rows_per_file in enumerate(rows_list):
         if start_index >= total_rows:
@@ -100,16 +97,16 @@ def split_csv(input_file, rows_list, names_list):
         output_file_path = f"{OUTPUT_FOLDER}/{file_name}.csv"
         with open(output_file_path, "w", newline="") as outfile:
             writer = csv.writer(outfile)
-            writer.writerows(processed_rows[start_index:start_index + rows_per_file])
+            writer.writerows([[email] for email in email_data[start_index:start_index + rows_per_file]])
 
         start_index += rows_per_file
 
-    # Если остались неиспользованные строки – кидаем в extra.csv
+    # Если остались неиспользованные email-адреса – кидаем в extra.csv
     if start_index < total_rows:
         extra_file_path = f"{OUTPUT_FOLDER}/extra.csv"
         with open(extra_file_path, "w", newline="") as extra_file:
             writer = csv.writer(extra_file)
-            writer.writerows(processed_rows[start_index:])  
+            writer.writerows([[email] for email in email_data[start_index:]])
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
