@@ -10,7 +10,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 OUTPUT_FOLDER = "output"
 
-# Создаем папки, если их нет
+# Создаем папки, если их нет (важно для Render)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
@@ -28,9 +28,9 @@ def index():
         clear_folder(UPLOAD_FOLDER)
         clear_folder(OUTPUT_FOLDER)
 
-        file = request.files["file"]
-        file_names = request.form["file_names"]
-        action = request.form["action"]  # Определяем, какая кнопка была нажата
+        file = request.files.get("file")
+        file_names = request.form.get("file_names")
+        action = request.form.get("action")  # Определяем, какая кнопка была нажата
 
         if not file or not file_names.strip():
             return "Ошибка: Файл не загружен или имена не указаны", 400
@@ -39,26 +39,25 @@ def index():
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         file.save(file_path)
 
-        # Если выбрано "Разделить поровну", пересчитываем строки
+        # Если выбрано "Разделить поровну", вычисляем количество строк в каждой части
         if action == "split_equally":
             parts_count = len(file_names.split(","))
             rows_list = calculate_equal_parts(file_path, parts_count)
         else:
-            # Получаем список строк для каждой части (через запятую)
-            rows_per_file = request.form["rows_per_file"]
+            rows_per_file = request.form.get("rows_per_file")
             rows_list = list(map(int, rows_per_file.split(",")))
 
         # Получаем список имен файлов
         names_list = [name.strip() for name in file_names.split(",")]
 
-        # Проверяем, хватает ли имен для частей
         if len(names_list) < len(rows_list):
             return "Ошибка: Количество имен файлов меньше, чем частей", 400
 
         # Выбираем, какую функцию запустить
-        if request.form["action_type"] == "filter_email":
+        action_type = request.form.get("action_type")
+        if action_type == "filter_email":
             split_csv_only_email(file_path, rows_list, names_list)
-        elif request.form["action_type"] == "split_contacts":
+        elif action_type == "split_contacts":
             split_csv_keep_all_columns(file_path, rows_list, names_list)
 
         # Архивируем результат
@@ -78,8 +77,8 @@ def index():
 @app.route("/calculate_equal_parts", methods=["POST"])
 def calculate_equal_parts_api():
     """API для вычисления равных частей (используется кнопкой "Разделить поровну")."""
-    file = request.files["file"]
-    parts_count = int(request.form["parts_count"])
+    file = request.files.get("file")
+    parts_count = request.form.get("parts_count", type=int)
 
     if not file or parts_count <= 0:
         return jsonify({"error": "Неверные данные"}), 400
@@ -102,7 +101,7 @@ def calculate_equal_parts(file_path, parts_count):
 
     # Равномерное распределение строк + случайное распределение оставшихся строк
     rows_list = [base_count] * parts_count
-    extra_indices = random.sample(range(parts_count), remainder)  # Выбираем случайные файлы для доп. строк
+    extra_indices = random.sample(range(parts_count), remainder)
 
     for index in extra_indices:
         rows_list[index] += 1
@@ -111,44 +110,28 @@ def calculate_equal_parts(file_path, parts_count):
 
 def split_csv_only_email(input_file, rows_list, names_list):
     """Оставляет только 2-й столбец (Email), удаляет заголовок и добавляет 'email' в каждую часть."""
-    file_count = {}
-    used_names = set()
-
     with open(input_file, "r", newline="") as file:
         reader = csv.reader(file)
         rows = list(reader)
 
     email_data = [row[1] for row in rows[1:] if len(row) > 1]
 
-    start_index = 0
-    total_rows = len(email_data)
-
-    for i, rows_per_file in enumerate(rows_list):
-        if start_index >= total_rows:
-            break
-
-        base_name = names_list[i]
-        file_name = get_unique_filename(base_name, used_names, file_count)
-
-        output_file_path = f"{OUTPUT_FOLDER}/{file_name}.csv"
-        with open(output_file_path, "w", newline="") as outfile:
-            writer = csv.writer(outfile)
-            writer.writerow(["email"])
-            writer.writerows([[email] for email in email_data[start_index:start_index + rows_per_file]])
-
-        start_index += rows_per_file
+    split_and_save(email_data, rows_list, names_list, "email")
 
 def split_csv_keep_all_columns(input_file, rows_list, names_list):
     """Оставляет все столбцы, но удаляет заголовок и добавляет 'email' в каждую часть."""
-    file_count = {}
-    used_names = set()
-
     with open(input_file, "r", newline="") as file:
         reader = csv.reader(file)
         rows = list(reader)
 
     data = rows[1:]
 
+    split_and_save(data, rows_list, names_list, "email")
+
+def split_and_save(data, rows_list, names_list, header):
+    """Разделяет данные и сохраняет в CSV."""
+    file_count = {}
+    used_names = set()
     start_index = 0
     total_rows = len(data)
 
@@ -162,8 +145,8 @@ def split_csv_keep_all_columns(input_file, rows_list, names_list):
         output_file_path = f"{OUTPUT_FOLDER}/{file_name}.csv"
         with open(output_file_path, "w", newline="") as outfile:
             writer = csv.writer(outfile)
-            writer.writerow(["email"])
-            writer.writerows(data[start_index:start_index + rows_per_file])
+            writer.writerow([header])
+            writer.writerows([[row] if isinstance(row, str) else row for row in data[start_index:start_index + rows_per_file]])
 
         start_index += rows_per_file
 
